@@ -6,32 +6,32 @@ namespace fs15_12_Customer_Database
 {
     public class CustomerDatabase
     {
-        private List<Customer> customers;
-        private List<Customer> customersDeleted; // List to store deleted customers
+        private Dictionary<int, Customer> customers;
+        private List<Customer> customersDeleted;
         private string filePath = "customers.csv";
         private Stack<Action> undoStack;
         private Stack<Action> redoStack;
 
         public CustomerDatabase()
         {
-            customers = new List<Customer>();
-            customersDeleted = new List<Customer>(); // Initialize the list of deleted customers
+            customers = new Dictionary<int, Customer>();
+            customersDeleted = new List<Customer>();
             undoStack = new Stack<Action>();
             redoStack = new Stack<Action>();
             LoadCustomersFromFile();
         }
-        public List<Customer> Customers => customers;
+
         public void AddCustomer(Customer customer)
         {
-            if (customers.Exists(c => c.Email == customer.Email))
+            if (customers.ContainsKey(customer.Id))
             {
-                Console.WriteLine("Customer with the same email already exists.");
+                Console.WriteLine("Customer with the same ID already exists.");
                 return;
             }
 
             Action addAction = () =>
             {
-                customers.Add(customer);
+                customers.Add(customer.Id, customer);
                 SaveCustomersToFile();
             };
 
@@ -45,10 +45,9 @@ namespace fs15_12_Customer_Database
 
             SaveCustomersToFile();
         }
-        public void UpdateCustomer(Customer customer)
+        public void UpdateCustomer(Customer updatedCustomer)
         {
-            Customer? existingCustomer = customers.Find(c => c.Id == customer.Id);
-            if (existingCustomer != null)
+            if (customers.TryGetValue(updatedCustomer.Id, out Customer? existingCustomer))
             {
                 Customer previousCustomer = new Customer
                 {
@@ -61,10 +60,10 @@ namespace fs15_12_Customer_Database
 
                 Action updateAction = () =>
                 {
-                    existingCustomer.FirstName = customer.FirstName;
-                    existingCustomer.LastName = customer.LastName;
-                    existingCustomer.Email = customer.Email;
-                    existingCustomer.Address = customer.Address;
+                    existingCustomer.FirstName = updatedCustomer.FirstName;
+                    existingCustomer.LastName = updatedCustomer.LastName;
+                    existingCustomer.Email = updatedCustomer.Email;
+                    existingCustomer.Address = updatedCustomer.Address;
 
                     SaveCustomersToFile();
                 };
@@ -86,19 +85,20 @@ namespace fs15_12_Customer_Database
         }
         public void DeleteCustomer(int customerId)
         {
-            Customer? customerToRemove = customers.Find(c => c.Id == customerId);
-            if (customerToRemove != null)
+            if (customers.ContainsKey(customerId))
             {
+                Customer customerToRemove = customers[customerId];
+
                 Action deleteAction = () =>
                 {
-                    customers.Remove(customerToRemove);
-                    customersDeleted.Add(customerToRemove); // Add the customer to the list of deleted customers
+                    customers.Remove(customerId);
+                    customersDeleted.Add(customerToRemove);
                     SaveCustomersToFile();
                 };
 
                 Action undoAction = () =>
                 {
-                    UndoDeleteCustomer(customerToRemove.Id); // Call separate method to undo deletion
+                    UndoDeleteCustomer(customerId);
                     SaveCustomersToFile();
                 };
 
@@ -111,6 +111,7 @@ namespace fs15_12_Customer_Database
                 Console.WriteLine("Customer not found.");
             }
         }
+
         private void UndoDeleteCustomer(int customerId)
         {
             Customer? customerToAdd = customersDeleted.Find(c => c.Id == customerId);
@@ -118,14 +119,14 @@ namespace fs15_12_Customer_Database
             {
                 Action addAction = () =>
                 {
-                    customers.Add(customerToAdd); // Add the customer back to the main list
-                    customersDeleted.Remove(customerToAdd); // Remove the customer from the list of deleted customers
+                    customers.Add(customerId, customerToAdd);
+                    customersDeleted.Remove(customerToAdd);
                     SaveCustomersToFile();
                 };
 
                 Action undoAction = () =>
                 {
-                    DeleteCustomer(customerToAdd.Id); // Call the separate method to delete the customer again
+                    DeleteCustomer(customerId);
                     SaveCustomersToFile();
                 };
 
@@ -138,13 +139,30 @@ namespace fs15_12_Customer_Database
                 Console.WriteLine("Customer not found in the deleted list.");
             }
         }
+
         public Customer? GetCustomerById(int customerId)
         {
-            return customers.Find(c => c.Id == customerId);
+            if (customers.ContainsKey(customerId))
+            {
+                return customers[customerId];
+            }
+
+            return null;
         }
+
         public List<Customer> SearchCustomersById(int customerId)
         {
-            return customers.FindAll(c => c.Id == customerId);
+            List<Customer> foundCustomers = new List<Customer>();
+
+            foreach (Customer customer in customers.Values)
+            {
+                if (customer.Id == customerId)
+                {
+                    foundCustomers.Add(customer);
+                }
+            }
+
+            return foundCustomers;
         }
         private void LoadCustomersFromFile()
         {
@@ -164,7 +182,7 @@ namespace fs15_12_Customer_Database
                             Email = values[3],
                             Address = values[4]
                         };
-                        customers.Add(customer);
+                        customers[customer.Id] = customer; // Update the customer in the dictionary
                     }
                 }
                 catch (Exception ex)
@@ -173,12 +191,13 @@ namespace fs15_12_Customer_Database
                 }
             }
         }
+
         private void SaveCustomersToFile()
         {
             try
             {
                 List<string> lines = new List<string>();
-                foreach (Customer customer in customers)
+                foreach (Customer customer in customers.Values)
                 {
                     string line = $"{customer.Id},{customer.FirstName},{customer.LastName},{customer.Email},{customer.Address}";
                     lines.Add(line);
@@ -190,18 +209,20 @@ namespace fs15_12_Customer_Database
                 Console.WriteLine("Error saving customers: " + ex.Message);
             }
         }
+
         private void PerformAction(Action addAction, Action undoAction)
         {
             addAction.Invoke();
             undoStack.Push(undoAction);
-            redoStack.Clear(); // Clear redo stack when a new action is performed
+            redoStack.Clear();
         }
+
         public void Undo()
         {
             if (undoStack.Count > 0)
             {
                 Action undoAction = undoStack.Pop();
-                redoStack.Push(undoAction); // Store the undo action in the redo stack before executing it
+                redoStack.Push(undoAction);
                 undoAction.Invoke();
             }
             else
@@ -209,18 +230,19 @@ namespace fs15_12_Customer_Database
                 Console.WriteLine("No action to undo.");
             }
         }
+
         public void Redo()
         {
             if (redoStack.Count > 0)
             {
                 Action redoAction = redoStack.Pop();
-                undoStack.Push(redoAction); // Store the redo action in the undo stack before executing it
+                undoStack.Push(redoAction);
                 redoAction.Invoke();
             }
             else if (undoStack.Count > 0)
             {
                 Action undoAction = undoStack.Pop();
-                redoStack.Push(undoAction); // Store the undo action in the redo stack before executing it
+                redoStack.Push(undoAction);
                 undoAction.Invoke();
             }
             else

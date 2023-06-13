@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using fs15_12_Customer_Database;
+
 public class Program
 {
     static void Main(string[] args)
@@ -36,9 +37,11 @@ public class Program
                     break;
                 case "5":
                     database.Undo();
+                    Console.WriteLine("Undo operation executed.");
                     break;
                 case "6":
                     database.Redo();
+                    Console.WriteLine("Redo operation executed.");
                     break;
                 case "0":
                     exit = true;
@@ -50,6 +53,7 @@ public class Program
             Console.WriteLine();
         }
     }
+
     static void AddCustomer(CustomerDatabase database)
     {
         Console.WriteLine("Add Customer");
@@ -83,6 +87,7 @@ public class Program
             Console.WriteLine("Invalid input for Customer ID. Please try again.");
         }
     }
+
     static void UpdateCustomer(CustomerDatabase database)
     {
         Console.WriteLine("Update Customer");
@@ -125,6 +130,7 @@ public class Program
             Console.WriteLine("Invalid input for Customer ID. Please try again.");
         }
     }
+
     static void DeleteCustomer(CustomerDatabase database)
     {
         Console.WriteLine("Delete Customer");
@@ -169,6 +175,7 @@ public class Program
             Console.WriteLine("Invalid input for Customer ID. Please try again.");
         }
     }
+
     static void SearchCustomers(CustomerDatabase database)
     {
         Console.WriteLine("Search Customers by ID");
@@ -201,4 +208,10 @@ public class Program
             Console.WriteLine("Invalid input for Customer ID. Please try again.");
         }
     }
+
+
+
+
+
+
 }
